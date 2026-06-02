@@ -5,7 +5,9 @@ Die im folgenden beschriebene Applikation existiert bereits als frühes proof-of
 - Gremium: Eine für eine bestimmten Zeitraum definierte Teilmenge der user, die sich zu Sitzungen zusammenfinden
 - Sitzung: Ein terminiertes Treffen eines Gremiums mit dem Ziel, über vorab kommunizierte Tagesordnungspunkte (Abkürzung TOP) zu debattieren und Entscheidungen zu treffen. Alternativ zu Entscheidungen: Informationen zur Kenntnis zu nehmen
 - Vorsitz: Ein Mitglied eines Gremiums, dem diese Rolle mit Bezug zum Gremium gegeben wurde, hat im System das Recht, eine Sitzung des Gremium zu eröffnen, zu starten und zu beenden. Außerdem das Recht, Wortmeldungen aufzurufen und den Wortbeitrag zu beenden
-- Rolle: Eine Rolle definiert im System das für alle oder nur bestimmte Gremien gültiges Recht, bestimmte Bedienseiten aufzurufen und die in dieser Bedienseite möglichen Aktivitäten zu tun. Ein User kann in einem Gremium also Vorsitzender und Ratsmitglied sein, in einem anderen Gremium nur Ratsmitglied und in anderen Gremien gar keine Rechte haben
+- Personentyp: Fachliche Einordnung einer Person (z.B. Bürgermeister, Ratsmitglied, Sachkundiger Bürger). Ein Personentyp steuert keine Berechtigungen.
+- Rolle: Ein Bündel von Rechten. Rollen können global oder gremienbezogen vergeben werden.
+- Recht: Eine einzelne erlaubte Aktion im System (z.B. speech.request, session.start, protocol.edit)
 - Niederschrift: Die Dokumentation der Tagesordnungspunkte einer Sitzung
 
 # Grundbeschreibung
@@ -24,27 +26,25 @@ Die Applikation soll in verschiedenen Sitzungen des Rates der Stadt Greven (Gesa
 - Authentifizierung durch Benutzername + Passwort + JSON Web Tokens  (im POC wurden noch GUID-Tokens verwendet, die werden gelöschj)
 
 
-# Datenbank Entitäten
-- Tabelle users: id, namespace (erstmal immer "localhost", Erweiterungsmöglichkeit für externe Authentifikation), name (user_namespace und user_name kennzeichnen zu einem bestimmten Zeitpunkt den User eindeutig), email, function (Hauptfunktion des Nutzers im System, z.B. Bürgermeister, Ratsmitglied, Sachkundiger Bürger), first_name, last_name, activation_dt, deactivation_dt
-- users_localhost_credentials: Hier wird für lokale Nutzer das gehashte Passwort abgelegt, bezieht sich auf users
-- users_certificates: Hier werden die signierten Zertifikate abgelegt: id, user_id, valid_from, valid_to, revoked, certificate_string
-- user_details_council (Für Ratsmitglieder und Sachkundige Bürger werden in dieser Tabelle weitere Details angegeben): id, sworn_in_dt, type [counsilor, expert_citizen], fraction_id
-- committees (Das sind Gremien, Ausschüsse): id, name, founding_date, committee_state (PREPARED, IN_DUTY, INACTIVE)
-- fractions (Die im Rat vertretenen Fraktionen):  id, name 
-- roles: id, name (Namen sind "chair/Vorsitzender", "counsilor/Rat", "expert_citizen/Sachkundiger Bürger", "Beratendes Mitglied", "Stimmberechtigtes Mitglied"), "allowed_to_vote", "allowed_to_speak"
-- roles_of_users_in_committees: id, user_id, committee_id, role_id
-- roles_of_users (Rollen, die in allen Gremien immer gelten): id, user_id, role_id 
-- committee_sessions: id committee_id, start_dt, end_dt, start_user_id
-- api_keys: key_id, endpoint, key
-- session_protocol_statuus: id, Name (Vorbefüllen mit: EDITING, SIGNED_FROM_RECORDER, SIGNED_FROM_CHAIR)
-- session_protocols: protocol_id, session_id, protocol_recorder_user_id (Protokollant), protocol_status_id
-- session_protocol_content: content_id, protocol_id, sequence, content_markdown 
-- contributions: (Das sind die tatsächlich durchgeführten und dokumentierten Redebeiträge) contribution_id, user_id, session_id, start_dt, length_seconds
-- attendances: attendance_id, session_id, user_id, start_dt, end_dt
+# Datenbank-Struktur
+Die vollständige Datenbank-Struktur ist in der Datei sqlite_ddl_v1.sql beschrieben.
+Beispiel- und Stammdaten für Entwicklungs- und Testumgebungen sind in sqlite_seed_v1.sql beschrieben.
 
-Hinweis zu "roles": Die Spalte "allowed_to_speak" definieren jene Zusatzinformationen, die ich im Anwendungsfall "dashboard" benötige, um zu entscheiden, ob ich den Button "Wortmeldung" anzeige. Die Spalte "allowed_to_vote" ist für zukünftige Anwendung.
+Wichtig:
+- Rollen und Rechte sind getrennt modelliert.
+- Eine Rolle ist ein Bündel von Rechten.
+- Rechte werden über role_rights einer Rolle zugeordnet.
+- Rollen werden über user_role_assignments einem User zugewiesen (global oder gremienbezogen).
+- Das lokale Credential-Modell enthält ein Flag must_change_password für den v1-Initialbetrieb.
 
-Hinweis zu api_keys: Der API-Key ist eine UUID. Die Tabelle wird manuell gepflegt.
+Hinweis zu api_keys: Der API-Key ist eine UUID. Die Tabelle wird manuell gepflegt. In v1 wird der API-Key in der Datenbank im Klartext gespeichert (kein Hashing).
+
+## Passwort-Initialisierung (v1 pragmatisch)
+- Seed-Accounts erhalten ein temporäres Initialpasswort (als Hash) und sind mit must_change_password=1 markiert.
+- Beim ersten erfolgreichen Login wird der Nutzer zwingend auf die Passwort-Ändern-Seite geführt.
+- Erst nach erfolgreicher Änderung wird must_change_password auf 0 gesetzt.
+- Passwort-Reset in manage_users setzt ein neues temporäres Passwort und must_change_password wieder auf 1.
+- password_hash bleibt immer NOT NULL; ein "NULL = noch nicht gesetzt"-Sonderfall wird in v1 nicht verwendet.
 
 # Kommunikationskonzept
 Der Server stellt für jeden Anwendungsfall eine SPA-Website zur verfügung. Die Website holt sich dann über die Rest-API die dynamischen Inhalte. Listen sollen in angemessener Häufigkeit (3sek) gepollt werden.
@@ -52,9 +52,9 @@ Der Server stellt für jeden Anwendungsfall eine SPA-Website zur verfügung. Die
 Für zukünftige Version: Um die Liste der Wortmeldungen und der eingebuchten Teilnehmer sehr dynamisch aktualisieren zu können, soll außerdem eine Websocket-Verbindung vorgesehen werden. Die Website baut zunächst die Websocket-Verbindung auf und registiert sich damit implizit für Aktualisierungsnachrichten. Der Server erkennt den Neuaufbau und sendet die komplette aktuelle Liste an den Client und deren Versionsnummer an den Client. Jede Aktualisierung der Liste inkrementiert deren Versionsnummer. Jede Aktualisierung bewirkt, dass alle Clients eine Update-Nachricht bekommen.
 
 # Berechtigungskonzept
-Jeder Anwendungsfall soll durch eine eigene Website unter einer eigenen URL abgebildet werden. Jeder Benutzer hat 1...N Rollen, die namentlich den Anwendungsfällen und damit den URLs entsprechen. Berechtigungen beziehen sich exakt auf diese Anwendungsfälle und können sich auf ein bestimmtes Gremium beschränken oder allgemeingültig, also pauschal für alle Gremien gültig, sein. Ein Nutzer mit Rolle=Recht "administer_system" darf alles. 
+Jeder Anwendungsfall soll durch eine eigene Website unter einer eigenen URL abgebildet werden. Ein Benutzer hat 1...N Rollen. Eine Rolle bündelt Rechte; die Rechte steuern den Zugriff auf Seiten und Aktionen. Rechte können sich auf ein bestimmtes Gremium beschränken oder allgemeingültig, also pauschal für alle Gremien gültig, sein. Ein Nutzer mit Rolle "system_admin" darf alles.
 Eine User darf mehrere allgemeingültige Rollen haben. Er darf auch in Bezug zu einem Gremium mehrere Rollen haben.
-Jede Rolle darf sich generell am System anmelden und das Dashboard öffnen. Für jede Rolle ist definiert, ob sie bei Wahlen mitmachen darf und ob sie Rederecht hat. Das Dashboard muss passend für diese Rechte aufgebaut werden
+Der Zugriff auf Funktionen erfolgt immer über Rechteprüfung (nicht über URL-Namen von Rollen). Das Dashboard muss passend zu den zugewiesenen Rechten aufgebaut werden.
 
 
 ## Nicht funktionale Anforderungen
@@ -67,6 +67,7 @@ Jede Rolle darf sich generell am System anmelden und das Dashboard öffnen. Für
 - Browser-Kompatibilität: Es müssen nur neue Browser unterstützt werden (bitte keine Altlasten!)
 
 - TODO an die KI: Stelle hier Ideen / Formulierungen für weitere Nicht-funktionale Anforderungen ein.
+- Dieser TODO-Block ist explizit NICHT Teil von v1 und wird erst für spätere Versionen ausgearbeitet.
 ## Nicht-Funktionale Anforderung Konfiguration
 Die Software soll eine von ASP.NET gut unterstützte Konfigurationsstrategie über JSON- oder yml-Dateien verwenden, um die folgenden Informationen abzulegen
 - voller Pfad zu openssl-binary (wenn gesetzt, wird nicht im Path gesucht, sondern explizit dies executable als "openssl" betrachtet)
@@ -84,6 +85,7 @@ Im Footer Link zum Impressum und Zeitstempel der Bereitstellung und des GIT-Comm
 
 ## login
 Eingabe Benutzername und Passwort.
+Wenn must_change_password=1 ist, erfolgt nach erfolgreichem Login eine erzwungene Umleitung zum Passwortwechsel.
 
 ## dashboard (Alias /)
 Das dashboard ist der Standard-Anwendungsfall und ist über die root-URL (nach login!) erreichbar. Alle user haben Zugang zu diesem Dashboard.
@@ -103,6 +105,8 @@ Das dashboard ist der Standard-Anwendungsfall und ist über die root-URL (nach l
 CRUD für alle User (wobei ein Löschen nur ein "inaktiv" setzen bedeutet) , insbesondere auch:
 - Passwort eines Nutzers auf einen Standardwert zurücksetzen
 - Rechte eines Nutzers verwalten
+
+Hinweis: Ein Passwort-Reset setzt im Credential-Datensatz must_change_password=1.
 
 ## manage_my_user
 Selbst-Management des angemeldeten Nutzers. Auf diese Seite haben alle authentifizierten Nutzer Zugriff (heißt: Um auf "manage_my_user" zugreifen zu können, braucht man nicht das Recht/die Rolle "manage_my_user")
