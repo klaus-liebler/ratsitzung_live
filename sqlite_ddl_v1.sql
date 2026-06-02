@@ -78,9 +78,11 @@ CREATE TABLE IF NOT EXISTS committees (
 
 -- committee_sessions:
 -- Sitzung eines Gremiums; genau ein Eroeffner (start_user_id) je Sitzung.
+-- opened_dt = Eroeffnungszeitpunkt, start_dt = tatsaechlicher Sitzungsstart.
 CREATE TABLE IF NOT EXISTS committee_sessions (
   id INTEGER PRIMARY KEY,
   committee_id INTEGER NOT NULL,
+  opened_dt TEXT NOT NULL,
   start_dt TEXT,
   end_dt TEXT,
   start_user_id INTEGER NOT NULL,

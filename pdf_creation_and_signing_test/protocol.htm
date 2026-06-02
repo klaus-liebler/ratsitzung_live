@@ -1,0 +1,380 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="utf-8" />
+	<style>
+		@page { size: A4; margin: 20mm 15mm 20mm 15mm; }
+		body { font-family: Arial, Helvetica, sans-serif; font-size: 12pt; margin: 0; line-height: 1.4; }
+		h1 { color: #1f3b5b; margin: 0 0 6mm 0; }
+		h2, h3 { color: #1f3b5b; margin-top: 8mm; margin-bottom: 3mm; }
+		p { margin: 0 0 4mm 0; widows: 3; orphans: 3; break-inside: avoid; }
+		li { widows: 2; orphans: 2; }
+		ul, ol { margin: 0 0 4mm 7mm; padding-left: 4mm; }
+		table { border-collapse: separate; border-spacing: 0; width: 100%; margin-top: 4mm; table-layout: fixed; overflow: hidden; border: 0.3mm solid #c7d2de; border-radius: 2mm; }
+		th, td { border-bottom: 0.3mm solid #d7e0ea; border-right: 0.3mm solid #e4ebf2; padding: 2.2mm 2.8mm; text-align: left; vertical-align: top; word-wrap: break-word; }
+		th:last-child, td:last-child { border-right: 0; }
+		tr:last-child td { border-bottom: 0; }
+		th { background: linear-gradient(180deg, #2f5b88 0%, #254769 100%); color: #ffffff; font-weight: bold; letter-spacing: 0.2px; }
+		tbody tr:nth-child(even) td { background: #f7fafc; }
+		tbody tr:hover td { background: #eef4fb; }
+		caption { caption-side: top; text-align: left; font-weight: bold; color: #1f3b5b; margin-bottom: 2mm; }
+		img { max-width: 55mm; border: 0; padding: 0; display: block; }
+
+		/* Druckkontrolle - typische Varianten:
+		   1. Groessere Kopf-/Fussabstaende: @page { margin: 18mm 18mm 24mm 18mm; }
+		   2. Kompakter Satzspiegel:     @page { margin: 10mm 12mm 16mm 12mm; }
+		   3. Mehr Luft in Tabellen:      td { padding: 2.5mm 3mm; }
+		   4. Seitenumbrueche steuern:    h2 { break-before: page; }
+		*/
+	</style>
+</head>
+<body>
+<h1 id="testprotokoll">Testprotokoll</h1>
+<p><img src="file:///C:/repos/playground/ratsitzung_live/Logo_Stadt%20Greven.svg" alt="Logo" style="max-width:240px; margin-bottom:18px;" /></p>
+<h2 id="uberschrift-ebene-2">Überschrift Ebene 2</h2>
+<p>Dies ist ein <strong>Testtext</strong> für die Markdown-zu-PDF-Umwandlung.</p>
+<p>Der folgende Inhalt ist absichtlich laenger gehalten, damit der PDF-Generator
+sauber über mehrere Seiten umbricht und der Footer unter Realbedingungen getestet
+werden kann.</p>
+<h3 id="drucklayout-hinweis">Drucklayout-Hinweis</h3>
+<p>Die CSS-Werte im HTML-Template nutzen bereits Druckeinheiten in Millimeter.
+Beispiele:</p>
+<ul>
+<li><p><code>@page { margin: 12mm 15mm 18mm 15mm; }</code></p>
+</li>
+<li><p><code>body { margin: 0; }</code></p>
+</li>
+<li><p><code>h1 { margin-top: 0; margin-bottom: 6mm; }</code></p>
+</li>
+<li><p><code>table { margin-top: 4mm; }</code>
+Wenn du mehr Abstand zum Seitenende brauchst, sind diese Varianten typisch:</p>
+</li>
+<li><p><code>body { margin: 0 15mm 22mm 15mm; }</code></p>
+</li>
+<li><p><code>@page { margin: 14mm 15mm 20mm 15mm; }</code></p>
+</li>
+<li><p><code>h2 { break-after: avoid; }</code></p>
+</li>
+<li><p><code>table { page-break-inside: auto; }</code></p>
+</li>
+</ul>
+<h3 id="zusatzliche-abschnitte">Zusätzliche Abschnitte</h3>
+<p>Abschnitt A: Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer
+tristique, mauris in laoreet semper, velit ipsum volutpat justo, sit amet
+scelerisque massa turpis non libero. Vestibulum ante ipsum primis in faucibus
+orci luctus et ultrices posuere cubilia curae; Sed posuere, nibh ac varius
+ultrices, dui nibh pulvinar massa, vitae sollicitudin risus erat a risus.</p>
+<p>Abschnitt B: Vivamus faucibus justo sed lorem pretium, vel interdum nulla
+vulputate. Cras eget magna non erat interdum mattis. Donec a dui vitae odio
+lobortis iaculis. Integer nec velit a risus cursus tristique. Praesent at
+ullamcorper mauris. Etiam feugiat, lacus a dictum fringilla, sapien nibh
+imperdiet lectus, a luctus lorem sem et purus.</p>
+<p>Abschnitt C: Suspendisse potenti. Aliquam erat volutpat. In hac habitasse platea
+dictumst. Proin non velit nec sapien aliquet pharetra. Duis feugiat, neque at
+ultricies maximus, tortor neque euismod urna, sed gravida ipsum nunc non urna.</p>
+<h3 id="liste">Liste</h3>
+<ul>
+<li>Punkt 1</li>
+<li>Punkt 2</li>
+<li>Punkt 3</li>
+<li>Punkt 4</li>
+<li>Punkt 5</li>
+<li>Punkt 6</li>
+<li>Punkt 7</li>
+<li>Punkt 8</li>
+<li>Punkt 9</li>
+<li>Punkt 10</li>
+</ul>
+<h3 id="bild">Bild</h3>
+<p><img src="file:///C:/repos/playground/ratsitzung_live/pdf_creation_and_signing_test/test-image.png" alt="Testbild" /></p>
+<h3 id="tabelle">Tabelle</h3>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Rolle</th>
+<th>Stimme</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UserA</td>
+<td>Protokollführer</td>
+<td>Ja</td>
+</tr>
+<tr>
+<td>UserB</td>
+<td>Vorsitzender</td>
+<td>Nein</td>
+</tr>
+<tr>
+<td>UserC</td>
+<td>Ratsmitglied</td>
+<td>Enth.</td>
+</tr>
+<tr>
+<td>UserD</td>
+<td>Schriftführung</td>
+<td>Ja</td>
+</tr>
+<tr>
+<td>UserE</td>
+<td>Ratsmitglied</td>
+<td>Nein</td>
+</tr>
+<tr>
+<td>UserF</td>
+<td>Ratsmitglied</td>
+<td>Enth.</td>
+</tr>
+<tr>
+<td>UserG</td>
+<td>Gast</td>
+<td>Ja</td>
+</tr>
+<tr>
+<td>UserH</td>
+<td>Gast</td>
+<td>Nein</td>
+</tr>
+<tr>
+<td>UserI</td>
+<td>Gast</td>
+<td>Enth.</td>
+</tr>
+<tr>
+<td>UserJ</td>
+<td>Verwaltung</td>
+<td>Ja</td>
+</tr>
+<tr>
+<td>UserK</td>
+<td>Verwaltung</td>
+<td>Nein</td>
+</tr>
+<tr>
+<td>UserL</td>
+<td>Verwaltung</td>
+<td>Enth.</td>
+</tr>
+<tr>
+<td>UserM</td>
+<td>Sachbearbeitung</td>
+<td>Ja</td>
+</tr>
+<tr>
+<td>UserN</td>
+<td>Sachbearbeitung</td>
+<td>Nein</td>
+</tr>
+<tr>
+<td>UserO</td>
+<td>Sachbearbeitung</td>
+<td>Enth.</td>
+</tr>
+<tr>
+<td>UserP</td>
+<td>Technik</td>
+<td>Ja</td>
+</tr>
+<tr>
+<td>UserQ</td>
+<td>Technik</td>
+<td>Nein</td>
+</tr>
+<tr>
+<td>UserR</td>
+<td>Technik</td>
+<td>Enth.</td>
+</tr>
+<tr>
+<td>UserS</td>
+<td>Presse</td>
+<td>Ja</td>
+</tr>
+<tr>
+<td>UserT</td>
+<td>Presse</td>
+<td>Nein</td>
+</tr>
+<tr>
+<td>UserU</td>
+<td>Presse</td>
+<td>Enth.</td>
+</tr>
+<tr>
+<td>UserV</td>
+<td>Beirat</td>
+<td>Ja</td>
+</tr>
+<tr>
+<td>UserW</td>
+<td>Beirat</td>
+<td>Nein</td>
+</tr>
+<tr>
+<td>UserX</td>
+<td>Beirat</td>
+<td>Enth.</td>
+</tr>
+<tr>
+<td>UserY</td>
+<td>Protokoll</td>
+<td>Ja</td>
+</tr>
+<tr>
+<td>UserZ</td>
+<td>Protokoll</td>
+<td>Nein</td>
+</tr>
+<tr>
+<td>UserAA</td>
+<td>Protokoll</td>
+<td>Enth.</td>
+</tr>
+<tr>
+<td>UserAB</td>
+<td>Fraktion A</td>
+<td>Ja</td>
+</tr>
+<tr>
+<td>UserAC</td>
+<td>Fraktion B</td>
+<td>Nein</td>
+</tr>
+<tr>
+<td>UserAD</td>
+<td>Fraktion C</td>
+<td>Enth.</td>
+</tr>
+<tr>
+<td>UserAE</td>
+<td>Fraktion D</td>
+<td>Ja</td>
+</tr>
+<tr>
+<td>UserAF</td>
+<td>Fraktion E</td>
+<td>Nein</td>
+</tr>
+<tr>
+<td>UserAG</td>
+<td>Fraktion F</td>
+<td>Enth.</td>
+</tr>
+<tr>
+<td>UserAH</td>
+<td>Fraktion G</td>
+<td>Ja</td>
+</tr>
+<tr>
+<td>UserAI</td>
+<td>Fraktion H</td>
+<td>Nein</td>
+</tr>
+<tr>
+<td>UserAJ</td>
+<td>Fraktion I</td>
+<td>Enth.</td>
+</tr>
+<tr>
+<td>UserAK</td>
+<td>Fraktion J</td>
+<td>Ja</td>
+</tr>
+<tr>
+<td>UserAL</td>
+<td>Fraktion K</td>
+<td>Nein</td>
+</tr>
+<tr>
+<td>UserAM</td>
+<td>Fraktion L</td>
+<td>Enth.</td>
+</tr>
+<tr>
+<td>UserAN</td>
+<td>Fraktion M</td>
+<td>Ja</td>
+</tr>
+<tr>
+<td>UserAO</td>
+<td>Fraktion N</td>
+<td>Nein</td>
+</tr>
+<tr>
+<td>UserAP</td>
+<td>Fraktion O</td>
+<td>Enth.</td>
+</tr>
+<tr>
+<td>UserAQ</td>
+<td>Fraktion P</td>
+<td>Ja</td>
+</tr>
+<tr>
+<td>UserAR</td>
+<td>Fraktion Q</td>
+<td>Nein</td>
+</tr>
+<tr>
+<td>UserAS</td>
+<td>Fraktion R</td>
+<td>Enth.</td>
+</tr>
+<tr>
+<td>UserAT</td>
+<td>Fraktion S</td>
+<td>Ja</td>
+</tr>
+<tr>
+<td>UserAU</td>
+<td>Fraktion T</td>
+<td>Nein</td>
+</tr>
+<tr>
+<td>UserAV</td>
+<td>Fraktion U</td>
+<td>Enth.</td>
+</tr>
+<tr>
+<td>UserAW</td>
+<td>Fraktion V</td>
+<td>Ja</td>
+</tr>
+<tr>
+<td>UserAX</td>
+<td>Fraktion W</td>
+<td>Nein</td>
+</tr>
+<tr>
+<td>UserAY</td>
+<td>Fraktion X</td>
+<td>Enth.</td>
+</tr>
+<tr>
+<td>UserAZ</td>
+<td>Fraktion Y</td>
+<td>Ja</td>
+</tr>
+<tr>
+<td>UserBA</td>
+<td>Fraktion Z</td>
+<td>Nein</td>
+</tr>
+</tbody>
+</table>
+<h3 id="weitere-hinweise-fur-den-druck">Weitere Hinweise für den Druck</h3>
+<p>Wenn du mehr Abstand zum Seitenende brauchst, sind diese Varianten typisch:</p>
+<ul>
+<li><code>body { margin: 0 15mm 22mm 15mm; }</code></li>
+<li><code>@page { margin: 14mm 15mm 20mm 15mm; }</code></li>
+<li><code>h2 { break-after: avoid; }</code></li>
+<li><code>table { page-break-inside: auto; }</code></li>
+</ul>
+<p>Für ganz enge Layouts kann man die untere Seitenmarge kleiner machen, muss dann
+aber den Footer inhaltlich weiter nach unten oder die Trennlinie weiter nach unten
+setzen.</p>
+
+</body>
+</html>

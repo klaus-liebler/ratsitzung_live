@@ -19,11 +19,46 @@ Die Applikation soll in verschiedenen Sitzungen des Rates der Stadt Greven (Gesa
 
 # Technologien
 - serverseitig zu einer ASP.NET
-- Clientseitig lit-html, vite, Typescript
+- Clientseitig verbindlich: Vite + Lit + TypeScript
 - SQLite als Datenbank
 - REST-API mit JSON
 - Websockets zur Aktualisierung
 - Authentifizierung durch Benutzername + Passwort + JSON Web Tokens  (im POC wurden noch GUID-Tokens verwendet, die werden gelöschj)
+
+# Bibliotheken (Festlegungen v1)
+Die folgenden Bibliotheken und technischen Bausteine sind für v1 verbindlich festgelegt.
+
+## Backend (ASP.NET)
+- ASP.NET Core Web API: HTTP-API, Routing, Middleware, Fehlerbehandlung
+- Microsoft.AspNetCore.Authentication.JwtBearer: JWT-Authentifizierung und Autorisierung
+- Microsoft.Data.Sqlite + Dapper: SQLite-Zugriff und Mapping (SQL-first-Ansatz)
+- DbUp: Ausführung und Versionierung der SQL-Skripte (DDL/Seed)
+- Serilog: konfigurierbares Application-Logging
+- CsvHelper: Schreiben und Lesen von auditlog.csv
+- FluentValidation: Request- und Domain-Validierung
+- Swashbuckle (OpenAPI/Swagger): API-Dokumentation und API-Testbarkeit
+
+## Protokoll/PDF und Signierung
+- Markdown-Verarbeitung: Markdig
+- Template-Verarbeitung: Handlebars.Net
+- PDF-Erzeugung und Signierung: iText 7 (+ iText pdfHTML + iText BouncyCastle Adapter)
+- Signatur-Stack ist verbindlich: Markdown -> HTML -> PDF -> digitale Signatur (Protokollant, danach Chair)
+- Zertifikats- und CSR-Verarbeitung erfolgt ausschließlich in .NET (kein externes Tool, kein Fallback)
+
+## Frontend
+- Vite + TypeScript + Lit
+- Markdown-Editor für edit_protocol: Toast UI Editor (Fallback-Option: EasyMDE)
+- Diagramme (chair_session): Chart.js
+
+## Betrieb und Hilfsfunktionen
+- ZIP-Backups: System.IO.Compression (ZipArchive)
+
+## Referenzimplementierung (verbindlicher Techniknachweis)
+- Das Testprogramm im Verzeichnis pdf_creation_and_signing_test dient als Referenz für den finalen PDF-/Signatur-Workflow.
+- Referenzdateien:
+  - pdf_creation_and_signing_test/Program.cs
+  - pdf_creation_and_signing_test/pdf_creation_and_signing_test.csproj
+  - Ausgabedateien: protocol.pdf, protocol_sigA.pdf, protocol_sigA_sigB.pdf
 
 
 # Datenbank-Struktur
@@ -45,6 +80,8 @@ Hinweis zu api_keys: Der API-Key ist eine UUID. Die Tabelle wird manuell gepfleg
 - Erst nach erfolgreicher Änderung wird must_change_password auf 0 gesetzt.
 - Passwort-Reset in manage_users setzt ein neues temporäres Passwort und must_change_password wieder auf 1.
 - password_hash bleibt immer NOT NULL; ein "NULL = noch nicht gesetzt"-Sonderfall wird in v1 nicht verwendet.
+- Beim Passwortwechsel sind zwei identische Eingaben verpflichtend (Neues Passwort + Wiederholung). Ohne Übereinstimmung darf nicht gespeichert werden.
+- Die UI soll Browser-/Passwortmanager-Vorschläge für starke neue Passwörter aktiv unterstützen (Autocomplete-Standard für new-password).
 
 # Kommunikationskonzept
 Der Server stellt für jeden Anwendungsfall eine SPA-Website zur verfügung. Die Website holt sich dann über die Rest-API die dynamischen Inhalte. Listen sollen in angemessener Häufigkeit (3sek) gepollt werden.
@@ -62,7 +99,7 @@ Der Zugriff auf Funktionen erfolgt immer über Rechteprüfung (nicht über URL-N
 - Datenschutzaspekte: Es werden persönliche Daten verarbeitet. Nur ein entsprechend berechtigter Nutzer darf dies einsehen
 - Nachvollziehbarkeit: Alle Änderungen an Rechten und Zugehörigkeiten müssen in einer log-Datei "auditlog.csv (Zeitstempel, Nutzer, Änderung) protokolliert werden. Alle weiteren Änderungen müssen nicht protokolliert, sondern nur in der Datenbank abgelegt werden.
 - Logging: Die Arbeitsweise des Programms soll durch ein konfigurierbares logging nachvollzogen werden können
-- Barrierefreiheit: Kann insofern realisiert werden, dass in der HTML-UI nicht unpassende Strukturen (blinde Tabellen, verschachtelte DIV), sondern "screen reader kompatible" Elemente (flexbox + einfache Struktur?) verwendet werdn
+- Barrierefreiheit: Kann insofern realisiert werden, dass in der HTML-UI nicht unpassende Strukturen (blinde Tabellen, verschachtelte DIV), sondern "screen reader kompatible" Elemente (flexbox + einfache Struktur?) verwendet werden
 - Backup wird im Anwendungsfall "administrator" beschrieben
 - Browser-Kompatibilität: Es müssen nur neue Browser unterstützt werden (bitte keine Altlasten!)
 
@@ -70,10 +107,10 @@ Der Zugriff auf Funktionen erfolgt immer über Rechteprüfung (nicht über URL-N
 - Dieser TODO-Block ist explizit NICHT Teil von v1 und wird erst für spätere Versionen ausgearbeitet.
 ## Nicht-Funktionale Anforderung Konfiguration
 Die Software soll eine von ASP.NET gut unterstützte Konfigurationsstrategie über JSON- oder yml-Dateien verwenden, um die folgenden Informationen abzulegen
-- voller Pfad zu openssl-binary (wenn gesetzt, wird nicht im Path gesucht, sondern explizit dies executable als "openssl" betrachtet)
 - voller Pfad zum Zertifikat-Container (.pfx) der CA, die zum Signieren von Nutzerzertifikaten benötigt wird
 - voller Pfad zur Zertifikat-Container-Datei (also der Datei, die sowohl), die für die HTTPS-Verschlüsselung benötigt wird
 - Einstellungen für das Zertifikat (CN, OU, O, L, ST, C)
+- Hinweis: CSR-Verarbeitung und Signierung erfolgen in v1 ausschließlich in .NET (kein externes Tool, kein Fallback)
 - Bei einem Neustart/Crash ist die Wortmeldungsliste weg. Das ist ok
 
 # Anwendungsfall-Beschreibungen bzw. Beschreibung der UI
@@ -110,13 +147,15 @@ Hinweis: Ein Passwort-Reset setzt im Credential-Datensatz must_change_password=1
 
 ## manage_my_user
 Selbst-Management des angemeldeten Nutzers. Auf diese Seite haben alle authentifizierten Nutzer Zugriff (heißt: Um auf "manage_my_user" zugreifen zu können, braucht man nicht das Recht/die Rolle "manage_my_user")
-Panel "Passwort ändern" (zwei Eingabefelder, vergleichen übliche KOmplexität einfordern)
+Panel "Passwort ändern" mit den folgenden Regeln:
+- Zwei Eingabefelder für das neue Passwort (Passwort und Bestätigung), die identisch sein müssen.
+- Übliche Komplexität einfordern (mindestens 10 Zeichen, mindestens 1 Großbuchstabe, mindestens 1 Zahl).
+- Browser-/Passwortmanager-Vorschläge für neue starke Passwörter sollen aktiv unterstützt werden.
 Panel "Zertifikat erstellen" (wird angezeigt, sofern der Nutzer noch kein gültiges Zertifikat erstellt hat.)
 Die UI unterstützt das folgende schrittweise Vorgehen:
 - Schritt 1 User klickt auf  Button "Erzeugen" hinter Beschreibungstext "Erzeuge zufälligen privaten Schlüssel". Browser erstellt zufälligen privaten Schlüssel und zeigt ihn an
 - Schritt 2: User klickt auf Button "Speichern" hinter Beschreibung "Privaten Schlüssel als Datei speichern". Browser bietet das Abspeichern an.
-- Schritt 3: User klickt auf "Erzeugen und Senden" hinter "Öffentlichen Schlüssel aus privatem Schlüssel erzeugen, und zusammen mit Informationen zur Person als sog Certificate Signing Requent an den Server senden, fertiges Zertifikat auf dem Server ablegen. Browser senden CSR an den Server, Server signiert, Server legt Zertifikat in der Datenbank ab
-- Der Server führt die Zertifizierung mit openssl (Kommandozeile) durch
+- Schritt 3: User klickt auf "Erzeugen und Senden" hinter "Öffentlichen Schlüssel aus privatem Schlüssel erzeugen, und zusammen mit Informationen zur Person als Certificate Signing Request an den Server senden, fertiges Zertifikat auf dem Server ablegen". Browser sendet CSR an den Server, Server verarbeitet und signiert in .NET, Server legt Zertifikat in der Datenbank ab
 - Schritt 5: User klickt auf "Zertifikat runterladen und lokal speichern" Browser fordert Zertifikat vom Server an und bietet das lokale Abspeichern an
 
 
@@ -125,7 +164,7 @@ Dashboard für den Vorsitzenden zur Leitung und Steuerung einer Sitzung
 ### Layout:
 - Header "Sitzung <Gremienname>" 
 - Kontrollpanel 
--- Button "Sitzung starten" (Nach dem Start können weiterhin Teilnehmer beitrete)
+-- Button "Sitzung starten" (Nach dem Start können weiterhin Teilnehmer beitreten. Unterscheide: Mit der Eröffnung können teilnehmer beitreten. Ab dem Start können Wortmeldungen abgegeben werden.)
 -- Button "Sitzung beenden" (nach Sicherheitsabfrage!), 
 -- Sitzungsbeginn, 
 -- Dauer bis jetzt
@@ -159,7 +198,7 @@ Diese Website enthält
 - Panel System Info: Systeminformation, unter anderem:
 -- die Version der RatLive-Software, 
 -- die Dateigröße von Datenbank und Log-Datei und Audit-Datei
--- ob openssl im Pfad gefunden wurde und wenn ja, in welcher Version
+- Informationen zum Zertifikatsdienst in .NET (aktiv/fehlerhaft, letzte Signiermeldung)
 - Panel Datensicherung: Datenbank, Log-Datei(en), Audit-Datei(en) und ggf weitere? Daten werden auf Klick in ein ZIP-Archiv gepackt und zum Download angeboten
 
 

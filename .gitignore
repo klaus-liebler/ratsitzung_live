@@ -5,3 +5,8 @@ npm-debug.log*
 secret.py
 /__pycache__
 /data
+/pdf_creation_and_signing_test/bin
+/pdf_creation_and_signing_test/obj
+/ratlive_main/bin
+/ratlive_main/certs
+/ratlive_main/obj
