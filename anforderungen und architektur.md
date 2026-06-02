@@ -31,16 +31,20 @@ Die Applikation soll in verschiedenen Sitzungen des Rates der Stadt Greven (Gesa
 - user_details_council (Für Ratsmitglieder und Sachkundige Bürger werden in dieser Tabelle weitere Details angegeben): id, sworn_in_dt, type [counsilor, expert_citizen], fraction_id
 - committees (Das sind Gremien, Ausschüsse): id, name, founding_date, committee_state (PREPARED, IN_DUTY, INACTIVE)
 - fractions (Die im Rat vertretenen Fraktionen):  id, name 
-- roles: id, name (Namen sind "chair/Vorsitzender", "counsilor/Rat", "expert_citizen/Sachkundiger Bürger", "Beratendes Mitglied", "Stimmberechtigtes Mitglied"), allowed_to_vote, allowed_to_speak
+- roles: id, name (Namen sind "chair/Vorsitzender", "counsilor/Rat", "expert_citizen/Sachkundiger Bürger", "Beratendes Mitglied", "Stimmberechtigtes Mitglied"), "allowed_to_vote", "allowed_to_speak"
 - roles_of_users_in_committees: id, user_id, committee_id, role_id
 - roles_of_users (Rollen, die in allen Gremien immer gelten): id, user_id, role_id 
-- committee_sessions: id committee_id, start_dt, end_dt, start
+- committee_sessions: id committee_id, start_dt, end_dt, start_user_id
 - api_keys: key_id, endpoint, key
 - session_protocol_statuus: id, Name (Vorbefüllen mit: EDITING, SIGNED_FROM_RECORDER, SIGNED_FROM_CHAIR)
 - session_protocols: protocol_id, session_id, protocol_recorder_user_id (Protokollant), protocol_status_id
 - session_protocol_content: content_id, protocol_id, sequence, content_markdown 
 - contributions: (Das sind die tatsächlich durchgeführten und dokumentierten Redebeiträge) contribution_id, user_id, session_id, start_dt, length_seconds
 - attendances: attendance_id, session_id, user_id, start_dt, end_dt
+
+Hinweis zu "roles": Die Spalte "allowed_to_speak" definieren jene Zusatzinformationen, die ich im Anwendungsfall "dashboard" benötige, um zu entscheiden, ob ich den Button "Wortmeldung" anzeige. Die Spalte "allowed_to_vote" ist für zukünftige Anwendung.
+
+Hinweis zu api_keys: Der API-Key ist eine UUID. Die Tabelle wird manuell gepflegt.
 
 # Kommunikationskonzept
 Der Server stellt für jeden Anwendungsfall eine SPA-Website zur verfügung. Die Website holt sich dann über die Rest-API die dynamischen Inhalte. Listen sollen in angemessener Häufigkeit (3sek) gepollt werden.
@@ -56,7 +60,7 @@ Jede Rolle darf sich generell am System anmelden und das Dashboard öffnen. Für
 ## Nicht funktionale Anforderungen
 - Kommunikation verschlüsselt!
 - Datenschutzaspekte: Es werden persönliche Daten verarbeitet. Nur ein entsprechend berechtigter Nutzer darf dies einsehen
-- Nachvollziehbarkeit: Alle Änderungen an Rechten und Zugehörigkeiten müssen in einer log-Datei "auditlog.csv (Zeitstempel, Nutzer, Änderung) protokolliert werden
+- Nachvollziehbarkeit: Alle Änderungen an Rechten und Zugehörigkeiten müssen in einer log-Datei "auditlog.csv (Zeitstempel, Nutzer, Änderung) protokolliert werden. Alle weiteren Änderungen müssen nicht protokolliert, sondern nur in der Datenbank abgelegt werden.
 - Logging: Die Arbeitsweise des Programms soll durch ein konfigurierbares logging nachvollzogen werden können
 - Barrierefreiheit: Kann insofern realisiert werden, dass in der HTML-UI nicht unpassende Strukturen (blinde Tabellen, verschachtelte DIV), sondern "screen reader kompatible" Elemente (flexbox + einfache Struktur?) verwendet werdn
 - Backup wird im Anwendungsfall "administrator" beschrieben
@@ -69,6 +73,7 @@ Die Software soll eine von ASP.NET gut unterstützte Konfigurationsstrategie üb
 - voller Pfad zum Zertifikat-Container (.pfx) der CA, die zum Signieren von Nutzerzertifikaten benötigt wird
 - voller Pfad zur Zertifikat-Container-Datei (also der Datei, die sowohl), die für die HTTPS-Verschlüsselung benötigt wird
 - Einstellungen für das Zertifikat (CN, OU, O, L, ST, C)
+- Bei einem Neustart/Crash ist die Wortmeldungsliste weg. Das ist ok
 
 # Anwendungsfall-Beschreibungen bzw. Beschreibung der UI
 Jeder Anwendungsfall ist durch eine eigene Webseite mit jeweils angepasster UI dargestellt. Einzig der Header mit Logo und Menü und der Footer und das CSS-Design sind gleich
@@ -80,7 +85,7 @@ Im Footer Link zum Impressum und Zeitstempel der Bereitstellung und des GIT-Comm
 ## login
 Eingabe Benutzername und Passwort.
 
-## dashboard
+## dashboard (Alias /)
 Das dashboard ist der Standard-Anwendungsfall und ist über die root-URL (nach login!) erreichbar. Alle user haben Zugang zu diesem Dashboard.
 
 ### Layout vor Beitritt zu einer Sitzung
@@ -103,19 +108,13 @@ CRUD für alle User (wobei ein Löschen nur ein "inaktiv" setzen bedeutet) , ins
 Selbst-Management des angemeldeten Nutzers. Auf diese Seite haben alle authentifizierten Nutzer Zugriff (heißt: Um auf "manage_my_user" zugreifen zu können, braucht man nicht das Recht/die Rolle "manage_my_user")
 Panel "Passwort ändern" (zwei Eingabefelder, vergleichen übliche KOmplexität einfordern)
 Panel "Zertifikat erstellen" (wird angezeigt, sofern der Nutzer noch kein gültiges Zertifikat erstellt hat.)
-Die UI unterstützt das folgende schrittweise Vorgehen
-- Schritt 1 Button "Erzeuge zufälligen privaten Schlüssel"
-- Schritt 2: Schlüssel wird angezeigt Button "Privaten Schlüssel als Datei speichern"
-- Schritt 3: Öffentlichen Schlüssel aus privatem Schlüssel erzeugen
-- Schnitt 4: Schlüssel mit informationen zu meiner Person kombinieren und Zertifizierungsanforderung an Server senden
-- Schritt 5: Zertifikat in Datenbank abspeichern
-Beim Öffnen wird im Browser direkt und ohne Benutzeraktion schon mal ein zufälliger privater Key erzeugt Erstelle ein zufälliges Schlüsselpäärchen
-- Im Browser wird ein zufälliges Schlüsselpäärchen (private, public) erstellt. Der Certificate Signing Request
-### Für Version 1
-- Zertifikat für einen Benutzer erstellen und im System hinterlegen. Im Hintergrund soll dafür openssl auf der Kommandozeile verwendet werden. Es ist davon auszugehen, dass sich openssl im Path befindet
+Die UI unterstützt das folgende schrittweise Vorgehen:
+- Schritt 1 User klickt auf  Button "Erzeugen" hinter Beschreibungstext "Erzeuge zufälligen privaten Schlüssel". Browser erstellt zufälligen privaten Schlüssel und zeigt ihn an
+- Schritt 2: User klickt auf Button "Speichern" hinter Beschreibung "Privaten Schlüssel als Datei speichern". Browser bietet das Abspeichern an.
+- Schritt 3: User klickt auf "Erzeugen und Senden" hinter "Öffentlichen Schlüssel aus privatem Schlüssel erzeugen, und zusammen mit Informationen zur Person als sog Certificate Signing Requent an den Server senden, fertiges Zertifikat auf dem Server ablegen. Browser senden CSR an den Server, Server signiert, Server legt Zertifikat in der Datenbank ab
+- Der Server führt die Zertifizierung mit openssl (Kommandozeile) durch
+- Schritt 5: User klickt auf "Zertifikat runterladen und lokal speichern" Browser fordert Zertifikat vom Server an und bietet das lokale Abspeichern an
 
-### Für spätere Versionen: 
-- Gültigkeit berücksichtigen, Ablaufende Zertifikate erneuern, aber alte Zertifikate weiter behalten, Nutzer einen Seed für den privaten Schlüssel vorgeben lassen
 
 ## chair_session (alias chair)
 Dashboard für den Vorsitzenden zur Leitung und Steuerung einer Sitzung
@@ -140,8 +139,8 @@ Wenn ein Ratsmitglied sich meldet, wird es unten an die Wortmeldungsliste angeh�
 - Eintrag runter, dargestellt als Button mit dem Symbol Pfeil nach unten
 - Eintrag löschen, dargestellt als Button mit dem Symbol Mülleimer
 
-Ein Klick auf "Play" färbt die Zeile grün ein und "Play" wird zum "Pause"-Symbol. Die Zeitmessung beginnt. Ein Klick auf Pause pausiert die Zeitmessung, aber der Eintrag bleibt. Ein Klick auf Stop beendet die Zeitmessung. Der Eintrag verschwindet auch aus der Liste
-Ein Klick auf ein anderes Play stellt zunächst eine "Sind Sie sicher"-Rückfrage. Falls "Ja", dann wird der gegenwärtige Wortbeitrag gestoppt und der angeklickte gestartet. Die Wortmeldungsliste wird im Server lediglich im RAM abgelegt (Dictionary session_id -->Wortmeldungsliste). Nur die tatsächlich aufgerufenen Beiträge werden dann in der Datenbank dokumentiert. Es darf pro Sitzung immer nur genau einen aktiven Redner geben. Eine pausierte Wortmeldung kann fortgesetzt werden. Redezeiten müssen pro Sitzung erfasst werden. 
+Ein Klick auf "Play" färbt die Zeile grün ein und "Play" wird zum "Pause"-Symbol. Die Zeitmessung beginnt. Ein Klick auf Pause pausiert die Zeitmessung, aber der Eintrag bleibt grün. Ein Klick auf Stop beendet die Zeitmessung. Der Eintrag verschwindet auch aus der Liste.
+Ein Klick auf ein anderes Play stellt zunächst eine "Sind Sie sicher"-Rückfrage. Falls "Ja", dann wird der gegenwärtige Wortbeitrag gestoppt und der angeklickte gestartet. Die Wortmeldungsliste wird im Server lediglich im RAM abgelegt (Dictionary session_id -->Wortmeldungsliste).  Nur die tatsächlich aufgerufenen Beiträge werden dann in der Datenbank dokumentiert. Es darf pro Sitzung immer nur genau einen aktiven Redner geben. Eine pausierte Wortmeldung kann fortgesetzt werden. Redezeiten müssen pro Sitzung erfasst werden. Eine Pausierung schließt einen Beitrag in der Datenbank ab (length_seconds wird gesetzt). Ein erneutes Anstarten erstellt einen neuen Eintrag in der Datenbank. Der Ende-Zeitpunkt entspricht beim Erstellen den Start-Zeitpunkt des Redebeitrags. Die korrekte Ende-Zeit wird also beim Pausieren oder beim Stoppen gesetzt.
 
 ### Zur Anwesenheitsliste
 Wenn sich ein entsprechend berechtigter Nutzer in eine Sitzung einklinkt, dann erscheint er in der Anwesenheitsliste. Direkt nach Eröffnung einer Sitzung ist da zunächst nur der Vorsitzende selbst eingetragen.
@@ -194,11 +193,11 @@ Innerhalb des Markdowns, besonder in den Headern kann "Handlebars" verwendet wer
  - Blöcke gemäß Sequenznummer aufsteigend (also zuerst Einleitung, dann "normale" Blöcke und dann Abschluss)
  - global_footer
  
-  Dieses PDF-Dokument wird außerdem unmittelbar mit dem Zertifikat des Users digital signiert und damit auch vor Veränderungen geschützt (wobei PDF-Kommentare möglich bleiben sollen). Das PDF-Dokument wird auf dem Server im unterverzeichnis /session_protocols/unsigned/<id des gremiums>/<yyyy-MM-dd> <id der session> abgelegt
+  Dieses PDF-Dokument wird außerdem unmittelbar mit dem Zertifikat des Protokollanten digital signiert und damit auch vor Veränderungen geschützt (wobei PDF-Kommentare möglich bleiben sollen). Das PDF-Dokument wird auf dem Server im unterverzeichnis /session_protocols/signed_from_recorder/<id des gremiums>/<yyyy-MM-dd> <id der session> abgelegt
 
 ## sign_protocol
 Alle User mit dem "chair_session"-Recht haben auch das recht, diese Seite zu öffnen, also diesen Anwendungsfall zu nutzen.
-Dem Nutzer werden alle Dokumente angezeigt, die sich im Ordner /session_protocols/unsigned/<id des gremiums> befinden. Es sollen alle Gremien-ids durchsucht werden, für die der User eben das "chair_session" Recht hat. Es soll nach Gremium gruppiert werden. Der User kann sich das Dokument downloaden und er kann es mit seinem Zertifikat digital signieren. Ein derart signiertes Dokument wird aus dem /unsigned/-Ordner entfernt und in einem entsprechenden /signed/-Ordner abgelegt. Damit ist der Workflow beendet
+Dem Nutzer werden alle Dokumente angezeigt, die sich im Ordner /session_protocols/signed_from_recorder/<id des gremiums> befinden. Es sollen alle Gremien-ids durchsucht werden, für die der User eben das "chair_session" Recht hat. Es soll nach Gremium gruppiert werden. Der User kann sich das Dokument downloaden und er kann es mit seinem Zertifikat digital signieren. Ein derart signiertes Dokument wird aus dem /signed_from_recorder/-Ordner entfernt und in einem entsprechenden /signed_from_chair/-Ordner abgelegt. Damit ist der Workflow beendet
   
 
 # Python-basiertes Präsentationsprogramm
