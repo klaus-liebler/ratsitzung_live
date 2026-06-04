@@ -203,40 +203,70 @@ Diese Website enthält
 
 
  ## edit_protocol
- In zwei verknüpften Dropdowns "Gremium" und "Sitzung" lassen sich geöffnete oder abgeschlossene Sitzungen auswählen und dafür die Niederschrift erstellen und editieren. Die Niederschrift kann gemäß Berechtigungskonzept von jeder Person erstellt werden, die das Recht bzw die Rolle "edit_protocol" hat. Alle Texte sollen im Browser in einem Online-Markdown-Editor Blockweise geschrieben werden
+Die Seite kann nur von entsprechend berechtigten Benutzern geöffnet werden
+ Zunächst erscheinen nur zwei Dropdown-Listen und ein Button "Protokoll erstellen oder öffnen"
+ Der Nutzer wählt in der ersten Liste "Gremium" eines der definierten Gremien aus
+ Das System aktualisiert die Einträge des zweiten Dropdowns mit Sitzungen dieses Gremiums, für die ein opened_dt definiert ist und in der Vergangenheit liegt
+ Der Nutzer wählt eine der Sitzungen aus und klickt auf den Button
 
- ### Bedienlogik
- Ein neues Protokoll soll mit einem Einleitung- und einem Abschluss-Block mit Freitext vorbelegt werden. Zwischen diesen beiden Elementen können nun Blöcke einfefügt werden. Welche Blöcke dies sind und welches Template für diesen Block im Editor eingefügt wird, wird über template-Dateien im "./protocol_templates"-Ordner bestimmt. Dort sollen bei Auslieferung existieren:
- - ./protocol_templates/global_header.md: Äußerer Header der Gesamtdokumentes
- - ./protocol_templates/header_template.md: Template für den Einleitungs-Block
- - ./protocol_templates/footer_template.md: Template mit den Abschlussblock
- - ./protocol_templates/block/<Anzeigename>.md Template für den Bl
- - ./protocol_templates/global_footer.md: Abschluss der Gesamtdokumentes
+ Falls ein Protokoll bereits existiert, wird dieses geladen
+ Falls ein Protokoll noch nicht exisitiert, wird es erstellt.
+
+
+Ein Protokoll besteht insgesamt aus den folgenden Blöcken
+- Header: Kann nicht editiert werden, Inhalt wird in einer Template-Datei festgelegt
+- Anwesenheitsliste: Wird dynamisch automatisch erstellt
+- Einleitungsblock (obligatorisch, online editierbar)
+- Inhaltsblöcke (0...N, online editierbar)
+- Abschlussblock (obligatorisch, online editierbar)
+- Footer: Kann nicht editiert werden, Inhalt wird in einer Template-Datei festgelegt
+
+Auf der Seite werden zunächst nur die sowohl obligatorischen als auch editierbaren Blöcke Einleitung und Abschluss angezeigt. Der Nutzer kann dazwischen beliebig viele Blöcke hinzufügen und umordnen und löschen. Die Pflichtblöcke Einleitung und Abschluss dürfen nicht gelöscht werden. Zum Umordnen befinden auf der linken Seite jedes Blocks Buttons mit "Pfeil nach oben", "Pfeil nach unten" zur Verfügung. Zum Löschen befindet sich auf den linken Seite ein Button mit Papierkorb-Symbol (mit Sicherheitsabfrage!).
+
+ Die Reihenfolge der Blöcke wird über eine in der Datenbank gespeicherte Sequenznummer festgelegt. Die Sequenznummern werden erst beim Speichern aus der aktuellen Reihenfolge bestimmt und dann in die Datenbank übertragen; eine feste "sehr große" Sequenznummer für den Abschlussblock ist nicht erforderlich.
+ Gespeichert werden nur die editierbaren Blöcke (Einleitung, Inhaltsblöcke, Abschlussblock) mit Markdown-Inhalt und Sequenznummer. Header- und Footer-Blöcke werden nicht gespeichert.
+
+In den Blöcken soll eine HTML-Voransicht des Inhaltes angezeigt werden. Halb transparent über dem Inhalt und ziemlich groß liegt ein "Bearbeiten"-Button (Stift-Symbol), der in einem modalen Fenster einen Markdown-Editor zur Editierung des Inhaltes startet. Die Inhalte werden nämlich in Markdown erstellt und auch in der Datenbank abgelegt. Die eben geforderte HTML-Voransicht in den Blöcken soll möglichst clientseitig unter Nutzung einer API des Editors erstellt werden (siehe: https://nhn.github.io/tui.editor/latest/ToastUIEditorCore#getHTML). In der Blockvorschau werden Handlebars-Platzhalter roh (nicht aufgelöst) angezeigt. Im modalen Fenster mit dem Markdown sind unten rechts Buttons
+- "Speichern und Schließen"
+- "Verwerfen und Schließen"
+Beide Aktivitäten werden nur nach einer Sicherheitsabfrage ausgeführt.
+
+Zum Einfügen von neuen Inhaltsblöcken kann der Nutzer "+"-Buttons klicken, die sich zwischen den bestehenden Inhaltblöcken befinden. Wenn der Nutzer da drauf klickt, öffnet sich ein Auswahldialog mit den möglichen Inhaltsblöcken.
+
+Welche Blöcke dies sind und welches Template für diesen Block im Editor eingefügt wird, wird über template-Dateien im "./protocol_templates"-Ordner bestimmt. Dort sollen bei Auslieferung existieren:
+ - ./protocol_templates/header.md: Äußerer Header der Gesamtdokumentes
+ - ./protocol_templates/intro_template.md: Template für den Einleitungs-Block
+ - ./protocol_templates/outro_template.md: Template mit den Abschlussblock
+ - ./protocol_templates/block/<Anzeigename>.md Template für den Block <Anzeigename>
+ - ./protocol_templates/footer.md: Abschluss der Gesamtdokumentes
  - ./protocol_templates/resources/... : Hier können weitere Ressourcen (Bilder) liegen, die im Dokument benötigt werden und über Markdown eingebunden werden
 Bei Auslieferung der Software sollen alle Templates befüllt sein. Außerdem sollen die folgenden Block-Templates erstellt sein
  1.) Tagesordnungspunkt mit Kenntnisnahme (Template-Inhalt "Überschrift TOP xyz, Leerzeile, lorem ipsum, Ergebnis: Zur Kenntnis genommen")
  2.) Tagesordnungspunkt mit Beschluss (Template-Inhalt "Überschrift TOP xyz, Leerzeile, lorem ipsum, Ergebnis: Ja x, Nein y, Enthaltungen z")
  3.) Freitext (Template-Inhalt "Lorem Ipsum")
 
-Der Block wird eingefügt und der Editor für den Block wird in Abhängigkeit des Typs mit einem passenden Template versorgt. 
+ Der Anzeigename im Auswahldialog entspricht dem Dateinamen. Der Inhalt der entsprechenden Datei wird als Vorlage in den Editor einkopiert. Für v1 wird angenommen, dass alle Anzeigenamen gültige Dateinamen sind; die Sortierung im Auswahldialog erfolgt alphabetisch.
+
 
  ### Dynamischer Text
-Innerhalb des Markdowns, besonder in den Headern kann "Handlebars" verwendet werden, um dynamischen Text/Textblöcke zu generieren. Für dieses Templating stehen die folgenden Variablen zur Verfügung
+Innerhalb des Markdowns, besonders in den Templates Headern kann "Handlebars" verwendet werden, um dynamischen Text/Textblöcke zu generieren. Für dieses Templating stehen die folgenden Variablen zur Verfügung
 - Gremienname, Sitzungsdatum und Sitzungszeit
 - Vorsitzender, Protokollführer
 - Datum der Protokollerstellung (also der Durchführung des Templating-Prozesses mit dem Ziel, ein PDF zu erstellen)
 - Anwesende Teilnehmer (Name, Vorname, Fraktion)
 
- ### Design des Editors
- Für die Eingabe soll ein leistungsfähiger Browserbasierter Editor für Markdown eingebunden werden.  Blöcke zwischen Einleitung und Abschluss können verschoben werden nach oben oder nach unten. Blöcken können gelöscht werden. Neue Blöcke können hinzugefügt werden. Die Reihenfolge der Blocke wird über eine Sequenznummer vordefiniert. Einleitung hat immer die Sequenznummer 0 und Abschluss immer den größten numerischen Wert (bzw einen sehr großen wert, bspw (2^31)-1)). Ganz unten gibt es ein Button "Speichern", der die Infos in der Datenbank aktualsiert
+Die dynamischen Platzhalter werden erst beim Erstellen einer Vorschau oder eines PDF-Dokumentes aufgelöst.
 
  ### Workflow
- Ganz unten gibt es auch einen Button "PDF generieren". Dieser speichert zunächst in der Datenbank und lässt dann ein PDF-Dokument erstellen. Das PDF-Dokument enthält die Blöcke in der folgenden Reihenfolge
- - global_header
- - Blöcke gemäß Sequenznummer aufsteigend (also zuerst Einleitung, dann "normale" Blöcke und dann Abschluss)
- - global_footer
- 
-  Dieses PDF-Dokument wird außerdem unmittelbar mit dem Zertifikat des Protokollanten digital signiert und damit auch vor Veränderungen geschützt (wobei PDF-Kommentare möglich bleiben sollen). Das PDF-Dokument wird auf dem Server im unterverzeichnis /session_protocols/signed_from_recorder/<id des gremiums>/<yyyy-MM-dd> <id der session> abgelegt
+ Ganz unten auf der Seite gibt es diverse Buttons -
+- "Protokoll speichern": speichert den Markdown-Inhalt und die aus der aktuellen Reihenfolge abgeleiteten Sequenznummern der editierbaren Blöcke in der Datenbank (ohne Header und Footer)
+- "Speichern & HTML-Vorschau generieren": öffnet einen neuen Tab im Browser mit einer HTML-Ansicht (alle Blöcke, also  Header und Footer und Anwesenheitsliste und Inhaltsblöcke, eingefügt; Platzhalter aufgelöst). 
+- "Speichern & PDF-Vorschau generieren". Es wird gespeichert und dann serverseitig ein PDF-Dokument erzeugt und dieses Dokument dann dargestellt
+- "Speichern & PDF freigeben". Es wird gespeichert und dann serverseitig ein PDF-Dokument erzeugt.   Dieses PDF-Dokument wird außerdem unmittelbar mit dem Zertifikat des Protokollanten digital signiert und damit auch vor Veränderungen geschützt (wobei PDF-Kommentare möglich bleiben sollen). Das PDF-Dokument wird auf dem Server im unterverzeichnis /session_protocols/signed_from_recorder/<id des gremiums>/<yyyy-MM-dd> <id der session> abgelegt. Auch nach der PDF-Freigabe sind weitere Änderungen am Protokoll möglich.
+
+Konfliktverhalten bei parallelem Bearbeiten:
+- v1: Last write wins
+- v2: Beim Öffnen wird das Datum der letzten Speicherung mitgeliefert und beim Speichern zurückgesendet. Der Server erkennt damit, ob zwischenzeitlich bereits eine neuere Speicherung erfolgt ist.
 
 ## sign_protocol
 Alle User mit dem "chair_session"-Recht haben auch das recht, diese Seite zu öffnen, also diesen Anwendungsfall zu nutzen.
