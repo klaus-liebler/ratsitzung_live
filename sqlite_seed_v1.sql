@@ -9,11 +9,12 @@ BEGIN TRANSACTION;
 -- =========================================================
 -- 1) Fraktionen (Stammdaten)
 -- =========================================================
-INSERT OR IGNORE INTO fractions (id, name) VALUES
-  (1, 'CDU'),
-  (2, 'SPD'),
-  (3, 'Gruene'),
-  (4, 'FDP');
+INSERT OR IGNORE INTO fractions (id, name, color_rgb) VALUES
+  (1, 'CDU', '82,183,193'),
+  (2, 'SPD', '198,40,40'),
+  (3, 'Gruene', '42,133,74'),
+  (4, 'FDP', '245,196,0');
+
 
 -- =========================================================
 -- 2) Benutzer (Stammdaten)
@@ -21,16 +22,28 @@ INSERT OR IGNORE INTO fractions (id, name) VALUES
 INSERT OR IGNORE INTO users (
   id, namespace, name, email, function, first_name, last_name, activation_dt, deactivation_dt
 ) VALUES
+  -- sysadmin: global system administrator, dashboard access, may open/start/end all sessions.
   (1, 'localhost', 'sysadmin', 'sysadmin@ratlive.local', 'Systemadministrator', 'Alex', 'Admin', '2026-01-01 08:00:00', NULL),
+  -- vorsitz: committee chair for committees 1 and 2, has an opened but not yet started session in committee 1.
   (2, 'localhost', 'vorsitz', 'vorsitz@ratlive.local', 'Ratsmitglied', 'Marie', 'Vorsitz', '2026-01-01 08:00:00', NULL),
+  -- rat1: voting committee member with dashboard access, default demo login.
   (3, 'localhost', 'rat1', 'rat1@ratlive.local', 'Ratsmitglied', 'Ratsmitglied', '1', '2026-01-01 08:00:00', NULL),
+  -- expertin: advisory committee member with dashboard access.
   (4, 'localhost', 'expertin', 'expertin@ratlive.local', 'Sachkundiger Buerger', 'Eva', 'Expertin', '2026-01-01 08:00:00', NULL),
+  -- protokoll: protocol recorder with dashboard access.
   (5, 'localhost', 'protokoll', 'protokoll@ratlive.local', 'Protokollfuehrer', 'Paul', 'Protokoll', '2026-01-01 08:00:00', NULL),
+  -- useradmin: user administration role plus dashboard access.
   (6, 'localhost', 'useradmin', 'useradmin@ratlive.local', 'Verwaltung', 'Ursula', 'Useradmin', '2026-01-01 08:00:00', NULL),
+  -- rat2: additional voting committee member with dashboard access.
   (7, 'localhost', 'rat2', 'rat2@ratlive.local', 'Ratsmitglied', 'Ratsmitglied', '2', '2026-01-01 08:00:00', NULL),
+  -- rat3: additional voting committee member with dashboard access.
   (8, 'localhost', 'rat3', 'rat3@ratlive.local', 'Ratsmitglied', 'Ratsmitglied', '3', '2026-01-01 08:00:00', NULL),
+  -- rat4: additional voting committee member with dashboard access in committee 2.
   (9, 'localhost', 'rat4', 'rat4@ratlive.local', 'Ratsmitglied', 'Ratsmitglied', '4', '2026-01-01 08:00:00', NULL),
-  (10, 'localhost', 'changepassword', 'changepassword@ratlive.local', 'Ratsmitglied', 'Change', 'Password', '2026-01-01 08:00:00', NULL);
+  -- changepassword: dashboard user forced to change the initial password on first login.
+  (10, 'localhost', 'changepassword', 'changepassword@ratlive.local', 'Ratsmitglied', 'Change', 'Password', '2026-01-01 08:00:00', NULL),
+  -- vorsitz2: second chair, may open committees 1 and 2, currently has not opened or started any session.
+  (11, 'localhost', 'vorsitz2', 'vorsitz2@ratlive.local', 'Ratsmitglied', 'Lena', 'Vorsitz2', '2026-01-01 08:00:00', NULL);
 
 -- Hinweis:
 -- Passwort-Hashes sind Platzhalter und muessen in echten Umgebungen ersetzt werden.
@@ -48,7 +61,8 @@ INSERT OR IGNORE INTO users_localhost_credentials (
   (7, 'argon2id$demo$rat2_hash', 'argon2id', 0, '2026-01-01 08:00:00'),
   (8, 'argon2id$demo$rat3_hash', 'argon2id', 0, '2026-01-01 08:00:00'),
   (9, 'argon2id$demo$rat4_hash', 'argon2id', 0, '2026-01-01 08:00:00'),
-  (10, 'argon2id$demo$changepassword_hash', 'argon2id', 1, '2026-01-01 08:00:00');
+  (10, 'argon2id$demo$changepassword_hash', 'argon2id', 1, '2026-01-01 08:00:00'),
+  (11, 'argon2id$demo$chair2_hash', 'argon2id', 0, '2026-01-01 08:00:00');
 
 -- =========================================================
 -- 3) Fachliche Personen-Details (Stammdaten)
@@ -61,7 +75,8 @@ INSERT OR IGNORE INTO user_details_council (
   (3, 4, '2026-01-15 00:00:00', 'expert_citizen', 3),
   (4, 7, '2025-02-01 00:00:00', 'councilor', 1),
   (5, 8, '2025-03-01 00:00:00', 'councilor', 2),
-  (6, 9, '2025-04-01 00:00:00', 'councilor', 2);
+  (6, 9, '2025-04-01 00:00:00', 'councilor', 2),
+  (7, 11, '2025-05-01 00:00:00', 'councilor', 1);
 
 -- =========================================================
 -- 4) Gremien (Stammdaten)
@@ -225,7 +240,8 @@ INSERT OR IGNORE INTO user_role_assignments (
   (10, 7, 4, 'GLOBAL', NULL, '2026-01-01 08:00:00', NULL, 1, '2026-01-01 08:00:00', NULL),
   (11, 8, 4, 'GLOBAL', NULL, '2026-01-01 08:00:00', NULL, 1, '2026-01-01 08:00:00', NULL),
   (12, 9, 4, 'GLOBAL', NULL, '2026-01-01 08:00:00', NULL, 1, '2026-01-01 08:00:00', NULL),
-  (13, 10, 4, 'GLOBAL', NULL, '2026-01-01 08:00:00', NULL, 1, '2026-01-01 08:00:00', NULL);
+  (13, 10, 4, 'GLOBAL', NULL, '2026-01-01 08:00:00', NULL, 1, '2026-01-01 08:00:00', NULL),
+  (14, 11, 4, 'GLOBAL', NULL, '2026-01-01 08:00:00', NULL, 1, '2026-01-01 08:00:00', NULL);
 
 -- Gremienbezogen:
 INSERT OR IGNORE INTO user_role_assignments (
@@ -240,7 +256,9 @@ INSERT OR IGNORE INTO user_role_assignments (
   (26, 2, 5, 'COMMITTEE', 2, '2026-01-01 08:00:00', NULL, 1, '2026-01-01 08:00:00', NULL),
   (27, 7, 6, 'COMMITTEE', 1, '2026-01-01 08:00:00', NULL, 1, '2026-01-01 08:00:00', NULL),
   (28, 8, 6, 'COMMITTEE', 1, '2026-01-01 08:00:00', NULL, 1, '2026-01-01 08:00:00', NULL),
-  (29, 9, 6, 'COMMITTEE', 2, '2026-01-01 08:00:00', NULL, 1, '2026-01-01 08:00:00', NULL);
+  (29, 9, 6, 'COMMITTEE', 2, '2026-01-01 08:00:00', NULL, 1, '2026-01-01 08:00:00', NULL),
+  (30, 11, 5, 'COMMITTEE', 1, '2026-01-01 08:00:00', NULL, 1, '2026-01-01 08:00:00', NULL),
+  (31, 11, 5, 'COMMITTEE', 2, '2026-01-01 08:00:00', NULL, 1, '2026-01-01 08:00:00', NULL);
 
 -- =========================================================
 -- 9) API-Keys (Stammdaten)
@@ -253,9 +271,9 @@ INSERT OR IGNORE INTO api_keys (key_id, endpoint, key, is_active, created_dt) VA
 -- 10) Optionales Demo-Setup fuer Tests (kein Muss fuer Produktivbetrieb)
 -- =========================================================
 INSERT OR IGNORE INTO committee_sessions (
-  id, committee_id, start_dt, end_dt, start_user_id
+  id, committee_id, opened_dt, start_dt, end_dt, start_user_id
 ) VALUES
-  (1, 1, '2026-06-02 18:00:00', NULL, 2);
+  (1, 1, '2026-06-02 17:55:00', NULL, NULL, 2);
 
 INSERT OR IGNORE INTO attendances (
   attendance_id, session_id, user_id, start_dt, end_dt
@@ -264,12 +282,6 @@ INSERT OR IGNORE INTO attendances (
   (2, 1, 3, '2026-06-02 18:03:00', NULL),
   (3, 1, 4, '2026-06-02 18:05:00', NULL),
   (4, 1, 5, '2026-06-02 18:01:00', NULL);
-
-INSERT OR IGNORE INTO contributions (
-  contribution_id, user_id, session_id, start_dt, end_dt, length_seconds
-) VALUES
-  (1, 3, 1, '2026-06-02 18:10:00', '2026-06-02 18:12:05', 125),
-  (2, 4, 1, '2026-06-02 18:12:10', '2026-06-02 18:14:40', 150);
 
 -- Statuswerte werden bereits in sqlite_ddl_v1.sql gesetzt,
 -- diese Inserts sind nur als zusaetzliche Absicherung idempotent.

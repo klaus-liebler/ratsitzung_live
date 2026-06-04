@@ -46,7 +46,6 @@ builder.Services.AddAuthorization();
 var app = builder.Build();
 
 DatabaseBootstrapper.EnsureDatabaseSchema(repoRoot, dbPath, connectionString);
-DatabaseBootstrapper.NormalizeDemoPasswords(connectionString, bootstrapOptions.DemoInitialPassword);
 
 app.UseDefaultFiles();
 app.UseStaticFiles();

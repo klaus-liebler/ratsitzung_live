@@ -6,6 +6,8 @@ import "./components/selection-panel";
 import "./components/joined-panel";
 import type {
   ActiveSession,
+  ChairSpeechRequestItem,
+  ChairSpeechRequestsResponse,
   ChairStateResponse,
   MeResponse,
   OpenableCommittee,
@@ -20,8 +22,6 @@ export class RatsitzungDashboardApp extends LitElement {
   }
 
   @state() private viewMode: ViewMode = "login";
-  @state() private statusMessage = "Bitte anmelden.";
-  @state() private statusClass = "";
 
   @state() private username = "rat1";
   @state() private password = "Initial123!";
@@ -46,11 +46,18 @@ export class RatsitzungDashboardApp extends LitElement {
   @state() private sessionStatus = "";
 
   @state() private joinedSessionId: number | null = null;
-  @state() private isChairOfJoinedSession = false;
+  @state() private joinedCommitteeName = "";
+  @state() private canManageJoinedSession = false;
   @state() private chairError = "";
   @state() private chairState: ChairStateResponse | null = null;
+  @state() private chairSpeechRequests: ChairSpeechRequestItem[] = [];
 
   @state() private isBusy = false;
+  @state() private appPage: "sessions" | "manage_my_user" = "sessions";
+  @state() private avatarMenuOpen = false;
+  @state() private privateKeyPem = "";
+  @state() private certStatus = "";
+  @state() private certError = "";
 
   private readonly tokenKey = "ratlive_token";
   private pollHandle: number | null = null;
@@ -68,8 +75,7 @@ export class RatsitzungDashboardApp extends LitElement {
   private async bootstrap(): Promise<void> {
     if (!this.token()) {
       this.viewMode = "login";
-      this.statusMessage = "Bitte anmelden.";
-      this.statusClass = "";
+      this.updateDocumentTitle();
       return;
     }
 
@@ -77,15 +83,26 @@ export class RatsitzungDashboardApp extends LitElement {
     this.startPolling();
   }
 
+  private updateDocumentTitle(committeeName?: string): void {
+    const user = this.me?.username?.trim();
+    if (!user) {
+      document.title = "RatLive";
+      return;
+    }
+
+    const committee = (committeeName ?? "Dashboard").trim() || "Dashboard";
+    document.title = `${user}@${committee} - RatLive`;
+  }
+
   private token(): string | null {
-    return localStorage.getItem(this.tokenKey);
+    return sessionStorage.getItem(this.tokenKey);
   }
 
   private setToken(value: string | null): void {
     if (value) {
-      localStorage.setItem(this.tokenKey, value);
+      sessionStorage.setItem(this.tokenKey, value);
     } else {
-      localStorage.removeItem(this.tokenKey);
+      sessionStorage.removeItem(this.tokenKey);
     }
   }
 
@@ -121,12 +138,31 @@ export class RatsitzungDashboardApp extends LitElement {
     return value.replace("T", " ");
   }
 
+  private formatTime(value?: string | null): string {
+    if (!value) return "-";
+    const normalized = value.replace("T", " ").trim();
+    const match = normalized.match(/(\d{2}:\d{2}:\d{2})/);
+    return match ? match[1] : normalized;
+  }
+
   private formatDuration(seconds?: number): string {
     const s = Number(seconds ?? 0);
     const hh = Math.floor(s / 3600).toString().padStart(2, "0");
     const mm = Math.floor((s % 3600) / 60).toString().padStart(2, "0");
     const ss = Math.floor(s % 60).toString().padStart(2, "0");
     return `${hh}:${mm}:${ss}`;
+  }
+
+  private formatDisplayNameLastFirst(displayName?: string | null): string {
+    const raw = (displayName ?? "").trim();
+    if (!raw) return "-";
+
+    const parts = raw.split(/\s+/).filter(Boolean);
+    if (parts.length < 2) return raw;
+
+    const firstName = parts.slice(0, -1).join(" ");
+    const lastName = parts[parts.length - 1];
+    return `${lastName}, ${firstName}`;
   }
 
   private async loadActiveSessions(): Promise<ActiveSession[]> {
@@ -175,7 +211,7 @@ export class RatsitzungDashboardApp extends LitElement {
   }
 
   private async loadChairState(): Promise<void> {
-    if (!this.joinedSessionId || !this.isChairOfJoinedSession) {
+    if (!this.joinedSessionId || !this.canManageJoinedSession) {
       this.chairState = null;
       return;
     }
@@ -191,15 +227,30 @@ export class RatsitzungDashboardApp extends LitElement {
     this.chairState = (await res.json()) as ChairStateResponse;
   }
 
+  private async loadChairSpeechRequests(): Promise<void> {
+    if (!this.joinedSessionId || !this.canManageJoinedSession) {
+      this.chairSpeechRequests = [];
+      return;
+    }
+
+    const res = await this.api(`/api/sessions/${this.joinedSessionId}/chair/speech-requests`);
+    if (!res.ok) {
+      this.chairSpeechRequests = [];
+      return;
+    }
+
+    const data = (await res.json()) as ChairSpeechRequestsResponse;
+    this.chairSpeechRequests = Array.isArray(data.requests) ? data.requests : [];
+  }
+
   private async loadDashboardState(): Promise<void> {
     const meRes = await this.api("/api/auth/me");
     if (!meRes.ok) {
       this.stopPolling();
       this.setToken(null);
       this.viewMode = "login";
-      this.statusMessage = "Nicht angemeldet.";
-      this.statusClass = "";
       this.me = null;
+      this.updateDocumentTitle();
       return;
     }
 
@@ -210,30 +261,32 @@ export class RatsitzungDashboardApp extends LitElement {
     if (me.mustChangePassword) {
       this.stopPolling();
       this.viewMode = "change-password";
-      this.statusMessage = "Passwortwechsel erforderlich.";
-      this.statusClass = "error";
       return;
     }
 
     this.viewMode = "app";
-    this.statusMessage = "Angemeldet.";
-    this.statusClass = "ok";
 
     const sessions = await this.loadActiveSessions();
     const joined = sessions.find((s) => s.isJoined);
 
     if (joined) {
       this.joinedSessionId = joined.sessionId;
-      this.isChairOfJoinedSession = Number(joined.startUserId) === Number(me.id);
+      this.joinedCommitteeName = joined.committeeName;
+      this.canManageJoinedSession = joined.canManageSession;
+      this.updateDocumentTitle(joined.committeeName);
       await this.loadParticipants(joined.sessionId);
       await this.loadChairState();
+      await this.loadChairSpeechRequests();
       return;
     }
 
     this.joinedSessionId = null;
-    this.isChairOfJoinedSession = false;
+    this.joinedCommitteeName = "";
+    this.canManageJoinedSession = false;
     this.participantsData = null;
     this.chairState = null;
+    this.chairSpeechRequests = [];
+    this.updateDocumentTitle();
     await this.loadOpenableCommittees();
   }
 
@@ -255,6 +308,7 @@ export class RatsitzungDashboardApp extends LitElement {
 
       const data = (await res.json()) as { accessToken: string };
       this.setToken(data.accessToken);
+      this.appPage = "sessions";
       await this.loadDashboardState();
       this.startPolling();
     } finally {
@@ -336,6 +390,8 @@ export class RatsitzungDashboardApp extends LitElement {
 
     this.sessionStatus = "Wortmeldung aktualisiert.";
     await this.loadParticipants(this.joinedSessionId);
+    await this.loadChairState();
+    await this.loadChairSpeechRequests();
   }
 
   private async leaveSession(): Promise<void> {
@@ -355,7 +411,7 @@ export class RatsitzungDashboardApp extends LitElement {
   }
 
   private async chairStart(): Promise<void> {
-    if (!this.joinedSessionId || !this.isChairOfJoinedSession) return;
+    if (!this.joinedSessionId || !this.canManageJoinedSession) return;
 
     this.chairError = "";
     const res = await this.api(`/api/sessions/${this.joinedSessionId}/chair/start`, { method: "POST" });
@@ -366,10 +422,11 @@ export class RatsitzungDashboardApp extends LitElement {
     }
 
     await this.loadChairState();
+    await this.loadChairSpeechRequests();
   }
 
   private async chairEnd(): Promise<void> {
-    if (!this.joinedSessionId || !this.isChairOfJoinedSession) return;
+    if (!this.joinedSessionId || !this.canManageJoinedSession) return;
 
     const ok = window.confirm("Moechtest du die Sitzung wirklich beenden?");
     if (!ok) return;
@@ -385,27 +442,223 @@ export class RatsitzungDashboardApp extends LitElement {
     await this.loadDashboardState();
   }
 
+  private async chairCreateSpeechRequest(userId: number): Promise<void> {
+    if (!this.joinedSessionId || !this.canManageJoinedSession || !userId) return;
+
+    this.chairError = "";
+    const res = await this.api(`/api/sessions/${this.joinedSessionId}/chair/speech-requests`, {
+      method: "POST",
+      body: JSON.stringify({ userId })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Wortmeldung konnte nicht fuer Benutzer erstellt werden." }));
+      this.chairError = (err as { error?: string }).error ?? "Wortmeldung konnte nicht fuer Benutzer erstellt werden.";
+      return;
+    }
+
+    await this.loadParticipants(this.joinedSessionId);
+    await this.loadChairState();
+    await this.loadChairSpeechRequests();
+  }
+
+  private async chairPlaySpeechRequest(userId: number, forceStopCurrent = false): Promise<void> {
+    if (!this.joinedSessionId || !this.canManageJoinedSession || !userId) return;
+
+    this.chairError = "";
+    const res = await this.api(`/api/sessions/${this.joinedSessionId}/chair/speech-requests/${userId}/play`, {
+      method: "POST",
+      body: JSON.stringify({ forceStopCurrent })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Wortmeldung konnte nicht aufgerufen werden." }));
+      if ((err as { requiresConfirm?: boolean }).requiresConfirm && !forceStopCurrent) {
+        const ok = window.confirm("Ein anderer Redebeitrag ist aktiv. Soll dieser beendet und der neue gestartet werden?");
+        if (ok) {
+          await this.chairPlaySpeechRequest(userId, true);
+        }
+        return;
+      }
+
+      this.chairError = (err as { error?: string }).error ?? "Wortmeldung konnte nicht aufgerufen werden.";
+      return;
+    }
+
+    await this.loadParticipants(this.joinedSessionId);
+    await this.loadChairState();
+    await this.loadChairSpeechRequests();
+  }
+
+  private async chairPauseSpeechRequest(userId: number): Promise<void> {
+    if (!this.joinedSessionId || !this.canManageJoinedSession || !userId) return;
+
+    this.chairError = "";
+    const res = await this.api(`/api/sessions/${this.joinedSessionId}/chair/speech-requests/${userId}/pause`, { method: "POST" });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Wortbeitrag konnte nicht pausiert werden." }));
+      this.chairError = (err as { error?: string }).error ?? "Wortbeitrag konnte nicht pausiert werden.";
+      return;
+    }
+
+    await this.loadParticipants(this.joinedSessionId);
+    await this.loadChairState();
+    await this.loadChairSpeechRequests();
+  }
+
+  private async chairStopSpeechRequest(userId: number): Promise<void> {
+    if (!this.joinedSessionId || !this.canManageJoinedSession || !userId) return;
+
+    this.chairError = "";
+    const res = await this.api(`/api/sessions/${this.joinedSessionId}/chair/speech-requests/${userId}/stop`, { method: "POST" });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Wortbeitrag konnte nicht beendet werden." }));
+      this.chairError = (err as { error?: string }).error ?? "Wortbeitrag konnte nicht beendet werden.";
+      return;
+    }
+
+    await this.loadParticipants(this.joinedSessionId);
+    await this.loadChairState();
+    await this.loadChairSpeechRequests();
+  }
+
+  private async chairDeleteSpeechRequest(userId: number): Promise<void> {
+    if (!this.joinedSessionId || !this.canManageJoinedSession || !userId) return;
+
+    this.chairError = "";
+    const res = await this.api(`/api/sessions/${this.joinedSessionId}/chair/speech-requests/${userId}`, { method: "DELETE" });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Wortmeldung konnte nicht geloescht werden." }));
+      this.chairError = (err as { error?: string }).error ?? "Wortmeldung konnte nicht geloescht werden.";
+      return;
+    }
+
+    await this.loadParticipants(this.joinedSessionId);
+    await this.loadChairState();
+    await this.loadChairSpeechRequests();
+  }
+
+  private async chairMoveSpeechRequest(userId: number, direction: "top" | "up" | "down"): Promise<void> {
+    if (!this.joinedSessionId || !this.canManageJoinedSession || !userId) return;
+
+    this.chairError = "";
+    const res = await this.api(`/api/sessions/${this.joinedSessionId}/chair/speech-requests/${userId}/move-${direction}`, {
+      method: "POST"
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Wortmeldung konnte nicht verschoben werden." }));
+      this.chairError = (err as { error?: string }).error ?? "Wortmeldung konnte nicht verschoben werden.";
+      return;
+    }
+
+    await this.loadChairSpeechRequests();
+  }
+
   private logout(): void {
+    this.avatarMenuOpen = false;
+    this.appPage = "sessions";
     this.stopPolling();
     this.setToken(null);
     this.viewMode = "login";
-    this.statusMessage = "Abgemeldet.";
-    this.statusClass = "";
+    this.updateDocumentTitle();
+  }
+
+  private toggleAvatarMenu(): void {
+    if (this.viewMode !== "app") return;
+    this.avatarMenuOpen = !this.avatarMenuOpen;
+  }
+
+  private openManageMyUser(): void {
+    this.appPage = "manage_my_user";
+    this.avatarMenuOpen = false;
+  }
+
+  private openSessionsPage(): void {
+    this.appPage = "sessions";
+    this.avatarMenuOpen = false;
+  }
+
+  private generatePrivateKey(): void {
+    const bytes = new Uint8Array(48);
+    crypto.getRandomValues(bytes);
+    const b64 = btoa(String.fromCharCode(...bytes));
+    this.privateKeyPem = `-----BEGIN PRIVATE KEY-----\n${b64}\n-----END PRIVATE KEY-----`;
+    this.certError = "";
+    this.certStatus = "Privater Schluessel wurde im Browser erzeugt.";
+  }
+
+  private savePrivateKey(): void {
+    if (!this.privateKeyPem) {
+      this.certError = "Bitte zuerst einen privaten Schluessel erzeugen.";
+      return;
+    }
+
+    const blob = new Blob([this.privateKeyPem], { type: "application/x-pem-file" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `ratlive-private-key-${this.me?.username ?? "user"}.pem`;
+    a.click();
+    URL.revokeObjectURL(url);
+    this.certError = "";
+    this.certStatus = "Privater Schluessel wurde als Datei angeboten.";
+  }
+
+  private sendCertificateRequest(): void {
+    if (!this.privateKeyPem) {
+      this.certError = "Bitte zuerst einen privaten Schluessel erzeugen.";
+      return;
+    }
+
+    this.certError = "";
+    this.certStatus = "CSR-Workflow ist als Seite vorhanden; Server-Anbindung fuer Zertifikatserzeugung folgt als naechster Schritt.";
+  }
+
+  private downloadCertificate(): void {
+    this.certError = "";
+    this.certStatus = "Zertifikats-Download ist als Bedienpunkt vorbereitet; Implementierung des Endpunkts folgt.";
   }
 
   render() {
-    const showSelection = this.viewMode === "app" && !this.joinedSessionId;
-    const showJoined = this.viewMode === "app" && !!this.joinedSessionId;
+    const showSelection = this.viewMode === "app" && this.appPage === "sessions" && !this.joinedSessionId;
+    const showJoined = this.viewMode === "app" && this.appPage === "sessions" && !!this.joinedSessionId;
+    const showManageMyUser = this.viewMode === "app" && this.appPage === "manage_my_user";
+    const navLabel = this.appPage === "manage_my_user" ? "Sitzungen" : showJoined ? "Sitzung" : "Sitzungen";
+    const isCurrentSpeakerMe =
+      !!showJoined &&
+      !this.canManageJoinedSession &&
+      !!this.participantsData?.myUserId &&
+      this.participantsData.activeSpeakerUserId === this.participantsData.myUserId;
 
     return html`
-      <div class="wrap">
-        <div class="card">
-          <h1>RatLive - Dashboard</h1>
-          <p class="hint">Eine Seite mit zwei Betriebsmodi: vor Beitritt (Sitzungsauswahl) und nach Beitritt (Sitzungsansicht).</p>
-          <p class="hint">Demo-Login: <b>rat1</b> / <b>Initial123!</b></p>
-          <p class=${this.statusClass}>${this.statusMessage}</p>
+      <header class="topbar">
+        <div class="topbar-inner">
+          <div class="brand-block">
+            <span class="brand">RatLive</span>
+            <a
+              class="nav-link"
+              href="#sessions"
+              @click=${(e: Event) => {
+                e.preventDefault();
+                this.openSessionsPage();
+              }}
+            >${navLabel}</a>
+          </div>
+          <button class="avatar-button" type="button" title="Benutzermenue" @click=${() => this.toggleAvatarMenu()}>
+            <span class="avatar-glyph">UA</span>
+          </button>
+          ${this.viewMode === "app" && this.avatarMenuOpen
+            ? html`
+                <div class="avatar-menu" role="menu" aria-label="Benutzermenue">
+                  <button class="menu-item" @click=${() => this.openManageMyUser()} role="menuitem">Account verwalten</button>
+                  <button class="menu-item danger" @click=${() => this.logout()} role="menuitem">Abmelden</button>
+                </div>
+              `
+            : null}
         </div>
+      </header>
 
+      <div class=${`wrap${showJoined ? " wrap-wide" : ""}`}>
         ${this.viewMode === "login"
           ? html`
               <login-card
@@ -446,8 +699,14 @@ export class RatsitzungDashboardApp extends LitElement {
         ${this.viewMode === "app"
           ? html`
               <div class="card">
-                <h2>${showJoined ? "Sitzungsansicht" : "Sitzungsauswahl"}</h2>
-                <p>Willkommen ${this.me?.displayName} (${this.me?.username})</p>
+                ${showJoined
+                  ? html`
+                      <h2 id="sessions">${this.joinedCommitteeName}, Sitzung ${this.joinedSessionId} (${this.formatDisplayNameLastFirst(this.me?.displayName)})</h2>
+                    `
+                  : html`
+                      <h2 id="sessions">Sitzungsauswahl</h2>
+                      <p>Willkommen ${this.me?.displayName} (${this.me?.username})</p>
+                    `}
 
                 ${showSelection
                   ? html`
@@ -472,23 +731,111 @@ export class RatsitzungDashboardApp extends LitElement {
                         .sessionStatus=${this.sessionStatus}
                         .hasSpeechRequest=${!!this.participantsData?.hasMySpeechRequest}
                         .participantsData=${this.participantsData}
-                        .isChairOfJoinedSession=${this.isChairOfJoinedSession}
+                        .canManageSession=${this.canManageJoinedSession}
                         .chairError=${this.chairError}
                         .chairState=${this.chairState}
+                        .chairSpeechRequests=${this.chairSpeechRequests}
                         .formatDateTime=${this.formatDateTime.bind(this)}
+                        .formatTime=${this.formatTime.bind(this)}
                         .formatDuration=${this.formatDuration.bind(this)}
                         @toggle-speech=${() => void this.toggleSpeechRequest()}
                         @leave-session=${() => void this.leaveSession()}
                         @chair-start=${() => void this.chairStart()}
                         @chair-end=${() => void this.chairEnd()}
+                        @chair-create-speech-request=${(e: CustomEvent<number>) => void this.chairCreateSpeechRequest(e.detail)}
+                        @chair-play-speech-request=${(e: CustomEvent<number>) => void this.chairPlaySpeechRequest(e.detail)}
+                        @chair-pause-speech-request=${(e: CustomEvent<number>) => void this.chairPauseSpeechRequest(e.detail)}
+                        @chair-stop-speech-request=${(e: CustomEvent<number>) => void this.chairStopSpeechRequest(e.detail)}
+                        @chair-delete-speech-request=${(e: CustomEvent<number>) => void this.chairDeleteSpeechRequest(e.detail)}
+                        @chair-move-top-speech-request=${(e: CustomEvent<number>) => void this.chairMoveSpeechRequest(e.detail, "top")}
+                        @chair-move-up-speech-request=${(e: CustomEvent<number>) => void this.chairMoveSpeechRequest(e.detail, "up")}
+                        @chair-move-down-speech-request=${(e: CustomEvent<number>) => void this.chairMoveSpeechRequest(e.detail, "down")}
                       ></joined-panel>
                     `
                   : null}
 
-                <button class="secondary" @click=${() => this.logout()}>Abmelden</button>
-                <h3>Profil (API /api/auth/me)</h3>
-                <pre>${this.profileJson}</pre>
+                ${showManageMyUser
+                  ? html`
+                      <section class="card account-panel">
+                        <h2 id="manage_my_user">Account verwalten</h2>
+                        <p class="hint">Selbst-Management des angemeldeten Nutzers.</p>
+
+                        <h3>Passwort aendern</h3>
+                        <div class="row">
+                          <label for="accountNewPassword">Neues Passwort</label>
+                          <input
+                            id="accountNewPassword"
+                            type="password"
+                            .value=${this.newPassword}
+                            @input=${(e: Event) => {
+                              this.newPassword = (e.target as HTMLInputElement).value;
+                            }}
+                            autocomplete="new-password"
+                            minlength="10"
+                            pattern="(?=.*[A-Z])(?=.*[0-9]).{10,}"
+                            title="Mindestens 10 Zeichen, mindestens 1 Grossbuchstabe und 1 Zahl."
+                          />
+                        </div>
+                        <div class="row">
+                          <label for="accountNewPasswordConfirm">Neues Passwort bestaetigen</label>
+                          <input
+                            id="accountNewPasswordConfirm"
+                            type="password"
+                            .value=${this.newPasswordConfirm}
+                            @input=${(e: Event) => {
+                              this.newPasswordConfirm = (e.target as HTMLInputElement).value;
+                            }}
+                            autocomplete="new-password"
+                            minlength="10"
+                            pattern="(?=.*[A-Z])(?=.*[0-9]).{10,}"
+                            title="Mindestens 10 Zeichen, mindestens 1 Grossbuchstabe und 1 Zahl."
+                          />
+                        </div>
+                        <button ?disabled=${this.isBusy} @click=${() => void this.changePassword()}>Passwort speichern</button>
+                        <p class="error">${this.changePwdError}</p>
+                        <p class="ok">${this.changePwdOk}</p>
+
+                        <h3>Zertifikat erstellen</h3>
+                        <p class="hint">Schritt 1: Privaten Schluessel erzeugen.</p>
+                        <button @click=${() => this.generatePrivateKey()}>Erzeugen</button>
+
+                        <p class="hint">Schritt 2: Privaten Schluessel lokal speichern.</p>
+                        <button class="secondary" @click=${() => this.savePrivateKey()}>Speichern</button>
+
+                        <p class="hint">Schritt 3: CSR erzeugen und an den Server senden.</p>
+                        <button @click=${() => this.sendCertificateRequest()}>Erzeugen und Senden</button>
+
+                        <p class="hint">Schritt 4: Zertifikat vom Server laden und lokal speichern.</p>
+                        <button class="secondary" @click=${() => this.downloadCertificate()}>Zertifikat runterladen</button>
+
+                        ${this.privateKeyPem
+                          ? html`
+                              <h4>Privater Schluessel (lokal erzeugt)</h4>
+                              <pre>${this.privateKeyPem}</pre>
+                            `
+                          : null}
+
+                        <p class="error">${this.certError}</p>
+                        <p class="ok">${this.certStatus}</p>
+                      </section>
+                    `
+                  : null}
+
+                ${this.appPage === "sessions"
+                  ? html`
+                      <h3>Profil (API /api/auth/me)</h3>
+                      <pre>${this.profileJson}</pre>
+                    `
+                  : null}
               </div>
+
+              ${isCurrentSpeakerMe
+                ? html`
+                    <div class="speaker-overlay" aria-live="assertive">
+                      <div class="speaker-overlay-text">Sprechen Sie bitte</div>
+                    </div>
+                  `
+                : null}
             `
           : null}
       </div>

@@ -4,6 +4,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <FrontendDir>$(MSBuildProjectDirectory)\frontend</FrontendDir>
+    <SkipFrontendBuild Condition="'$(SkipFrontendBuild)' == ''">false</SkipFrontendBuild>
   </PropertyGroup>
 
   <ItemGroup>
@@ -13,5 +15,15 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.8" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.8" />
   </ItemGroup>
+
+  <Target Name="FrontendRestore" BeforeTargets="FrontendBuild" Condition="'$(SkipFrontendBuild)' != 'true' and (!Exists('$(FrontendDir)\node_modules') or !Exists('$(FrontendDir)\node_modules\.bin\vite.cmd'))">
+    <Message Importance="high" Text="Installing frontend dependencies in $(FrontendDir)" />
+    <Exec Command="npm ci" WorkingDirectory="$(FrontendDir)" />
+  </Target>
+
+  <Target Name="FrontendBuild" BeforeTargets="Build;Publish" Condition="'$(SkipFrontendBuild)' != 'true'">
+    <Message Importance="high" Text="Building frontend with Vite in $(FrontendDir)" />
+    <Exec Command="npm run build" WorkingDirectory="$(FrontendDir)" />
+  </Target>
 
 </Project>

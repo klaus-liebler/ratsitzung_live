@@ -218,17 +218,17 @@ Bei Auslieferung der Software sollen alle Templates befüllt sein. Außerdem sol
  2.) Tagesordnungspunkt mit Beschluss (Template-Inhalt "Überschrift TOP xyz, Leerzeile, lorem ipsum, Ergebnis: Ja x, Nein y, Enthaltungen z")
  3.) Freitext (Template-Inhalt "Lorem Ipsum")
 
-Der Block wird eingefügt und der Editor für den Block wird inn Abhängigkeit des Typs mit einem passenden Template versorgt. 
+Der Block wird eingefügt und der Editor für den Block wird in Abhängigkeit des Typs mit einem passenden Template versorgt. 
 
  ### Dynamischer Text
-Innerhalb des Markdowns, besonder in den Headern kann "Handlebars" verwendet werden, um dynamishen Text/Textblöcke zu generieren. Für dieses Templating stehen die folgenden Variablen zur Verfügung
+Innerhalb des Markdowns, besonder in den Headern kann "Handlebars" verwendet werden, um dynamischen Text/Textblöcke zu generieren. Für dieses Templating stehen die folgenden Variablen zur Verfügung
 - Gremienname, Sitzungsdatum und Sitzungszeit
 - Vorsitzender, Protokollführer
 - Datum der Protokollerstellung (also der Durchführung des Templating-Prozesses mit dem Ziel, ein PDF zu erstellen)
 - Anwesende Teilnehmer (Name, Vorname, Fraktion)
 
  ### Design des Editors
- Für die Eingabe soll ein leistungsfähiger Browserbasierter Editor für Markdown eingebunden werden. Jeder Block bekommt eine neue Editor-Instanz. Blöcke zwischen Einleitung und Abschluss können verschoben werden nach oben oder nach unten. Blöcken können gelöscht werden. Neue Blöcke können hinzugefügt werden. Die Reihenfolge der Blocke wird über eine Sequenznummer vordefiniert. Einleitung hat immer die Sequenznummer 0 und Abschluss immer den größten numerischen Wert (bzw einen sehr großen wert, bspw (2^31)-1)). Ganz unten gibt es ein Button "Speichern", der die Infos in der Datenbank aktualsiert
+ Für die Eingabe soll ein leistungsfähiger Browserbasierter Editor für Markdown eingebunden werden.  Blöcke zwischen Einleitung und Abschluss können verschoben werden nach oben oder nach unten. Blöcken können gelöscht werden. Neue Blöcke können hinzugefügt werden. Die Reihenfolge der Blocke wird über eine Sequenznummer vordefiniert. Einleitung hat immer die Sequenznummer 0 und Abschluss immer den größten numerischen Wert (bzw einen sehr großen wert, bspw (2^31)-1)). Ganz unten gibt es ein Button "Speichern", der die Infos in der Datenbank aktualsiert
 
  ### Workflow
  Ganz unten gibt es auch einen Button "PDF generieren". Dieser speichert zunächst in der Datenbank und lässt dann ein PDF-Dokument erstellen. Das PDF-Dokument enthält die Blöcke in der folgenden Reihenfolge

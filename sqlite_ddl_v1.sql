@@ -50,7 +50,8 @@ CREATE TABLE IF NOT EXISTS users_certificates (
 -- Politische Fraktionen, denen Mitglieder zugeordnet sein koennen.
 CREATE TABLE IF NOT EXISTS fractions (
   id INTEGER PRIMARY KEY,
-  name TEXT NOT NULL UNIQUE
+  name TEXT NOT NULL UNIQUE,
+  color_rgb TEXT NOT NULL DEFAULT '128,128,128'
 );
 
 -- user_details_council:

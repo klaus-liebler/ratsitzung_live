@@ -36,6 +36,7 @@ export class SelectionPanel extends LitElement {
               <thead>
                 <tr>
                   <th>Gremium</th>
+                  <th>Eroeffnet</th>
                   <th>Start</th>
                   <th>Eroeffnet durch</th>
                   <th>Teilnehmer</th>
@@ -47,8 +48,9 @@ export class SelectionPanel extends LitElement {
                   (s) => html`
                     <tr>
                       <td>${s.committeeName}</td>
+                      <td>${this.formatDateTime(s.openedDt)}</td>
                       <td>${this.formatDateTime(s.startDt)}</td>
-                      <td>${s.startedByDisplayName ?? "-"}</td>
+                      <td>${s.openedByDisplayName ?? "-"}</td>
                       <td>${s.activeParticipants ?? 0}</td>
                       <td class="action">
                         ${s.isJoined

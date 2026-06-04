@@ -30,6 +30,7 @@ export class LoginCard extends LitElement {
     return html`
       <div class="card">
         <h2>Login</h2>
+        <p class="hint">Demo-Login: <b>rat1</b> / <b>Initial123!</b></p>
         <div class="row">
           <label for="username">Benutzername</label>
           <input
